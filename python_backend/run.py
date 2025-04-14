@@ -3,11 +3,8 @@ from flask_cors import CORS
 import os
 import sys
 
-# Add the parent directory to sys.path to ensure imports work
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# Import app modules without relative imports
-from python_backend.app import app
+# Import the app directly since we're in the same directory
+from app import app
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))  # Use a different port than the frontend

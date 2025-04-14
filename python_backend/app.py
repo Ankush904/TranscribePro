@@ -6,13 +6,13 @@ from sqlalchemy.orm import Session
 from contextlib import contextmanager
 import traceback
 
-# Import from python_backend package
-from python_backend.models import get_db, create_tables, Transcript
-from python_backend.schemas import (
+# Import local modules
+from models import get_db, create_tables, Transcript
+from schemas import (
     TranscriptionRequest, TranscriptCreate, TranscriptUpdate,
     GeminiRequest, TranscriptResponse
 )
-from python_backend.services import TranscriptionService, GeminiService
+from services import TranscriptionService, GeminiService
 
 # Initialize Flask app
 app = Flask(__name__)
