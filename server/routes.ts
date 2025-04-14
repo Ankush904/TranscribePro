@@ -28,12 +28,15 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+  
+  // Import proxy functionality 
+  const { proxyToPython } = await import("./proxy");
 
   // Get all transcripts
-  app.get("/api/transcripts", async (_req: Request, res: Response) => {
+  app.get("/api/transcripts", async (req: Request, res: Response) => {
     try {
-      const transcripts = await storage.getAllTranscripts();
-      res.json(transcripts);
+      // Forward the request to Python backend
+      await proxyToPython(req, res, "/api/transcripts");
     } catch (error) {
       console.error("Error fetching transcripts:", error);
       res.status(500).json({ message: "Failed to fetch transcripts" });
@@ -43,17 +46,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get a single transcript
   app.get("/api/transcripts/:id", async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
+      const id = req.params.id;
+      if (!id) {
         return res.status(400).json({ message: "Invalid transcript ID" });
       }
 
-      const transcript = await storage.getTranscript(id);
-      if (!transcript) {
-        return res.status(404).json({ message: "Transcript not found" });
-      }
-
-      res.json(transcript);
+      // Forward the request to Python backend
+      await proxyToPython(req, res, `/api/transcripts/${id}`);
     } catch (error) {
       console.error("Error fetching transcript:", error);
       res.status(500).json({ message: "Failed to fetch transcript" });
@@ -69,8 +68,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: errorMessage });
       }
 
-      const transcript = await storage.createTranscript(validationResult.data);
-      res.status(201).json(transcript);
+      // Forward the request to Python backend
+      await proxyToPython(req, res, "/api/transcripts");
     } catch (error) {
       console.error("Error creating transcript:", error);
       res.status(500).json({ message: "Failed to create transcript" });
@@ -80,20 +79,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update a transcript
   app.patch("/api/transcripts/:id", async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
+      const id = req.params.id;
+      if (!id) {
         return res.status(400).json({ message: "Invalid transcript ID" });
       }
 
-      const transcript = await storage.getTranscript(id);
-      if (!transcript) {
-        return res.status(404).json({ message: "Transcript not found" });
-      }
-
-      // Partial validation of update data
-      const updateData = req.body;
-      const updated = await storage.updateTranscript(id, updateData);
-      res.json(updated);
+      // Forward the request to Python backend
+      await proxyToPython(req, res, `/api/transcripts/${id}`);
     } catch (error) {
       console.error("Error updating transcript:", error);
       res.status(500).json({ message: "Failed to update transcript" });
@@ -103,17 +95,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete a transcript
   app.delete("/api/transcripts/:id", async (req: Request, res: Response) => {
     try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
+      const id = req.params.id;
+      if (!id) {
         return res.status(400).json({ message: "Invalid transcript ID" });
       }
 
-      const success = await storage.deleteTranscript(id);
-      if (!success) {
-        return res.status(404).json({ message: "Transcript not found" });
-      }
-
-      res.status(204).send();
+      // Forward the request to Python backend
+      await proxyToPython(req, res, `/api/transcripts/${id}`);
     } catch (error) {
       console.error("Error deleting transcript:", error);
       res.status(500).json({ message: "Failed to delete transcript" });
@@ -123,9 +111,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Upload audio file for transcription - proxied to Python backend
   app.post("/api/transcribe/upload", upload.single("audio"), async (req: Request, res: Response) => {
     try {
-      // Import proxy functionality 
-      const { proxyToPython } = await import("./proxy");
-      
       if (!req.file) {
         return res.status(400).json({ message: "No audio file uploaded" });
       }
@@ -153,9 +138,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const errorMessage = fromZodError(validationResult.error).message;
         return res.status(400).json({ message: errorMessage });
       }
-      
-      // Import proxy functionality
-      const { proxyToPython } = await import("./proxy");
       
       // Forward the request to Python backend
       await proxyToPython(req, res, "/api/gemini/analyze");

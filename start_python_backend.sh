@@ -1,3 +1,8 @@
 #!/bin/bash
-cd "$(dirname "$0")"
+
+# Create uploads directory if it doesn't exist
+mkdir -p uploads
+
+# Start Python backend
+echo "Starting Python backend..."
 python -m python_backend.run
