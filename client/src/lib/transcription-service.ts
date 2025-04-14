@@ -16,6 +16,18 @@ export async function transcribeAudioFile(
   formData.append('model', model);
   formData.append('options', JSON.stringify(options));
   
+  // Add API keys from localStorage if available
+  const openaiKey = localStorage.getItem('OPENAI_API_KEY');
+  const deepgramKey = localStorage.getItem('DEEPGRAM_API_KEY');
+  
+  if (api === 'whisper' && openaiKey) {
+    formData.append('openaiKey', openaiKey);
+  }
+  
+  if (api === 'deepgram' && deepgramKey) {
+    formData.append('deepgramKey', deepgramKey);
+  }
+  
   const response = await fetch('/api/transcribe/upload', {
     method: 'POST',
     body: formData,

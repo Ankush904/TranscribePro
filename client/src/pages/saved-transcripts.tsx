@@ -16,7 +16,7 @@ export default function SavedTranscripts() {
   const [selectedTranscript, setSelectedTranscript] = useState<Transcript | null>(null);
 
   // Fetch all transcripts
-  const { data: transcripts, isLoading, error } = useQuery({
+  const { data: transcripts = [], isLoading, error } = useQuery<Transcript[]>({
     queryKey: ['/api/transcripts'],
   });
 
@@ -72,23 +72,25 @@ export default function SavedTranscripts() {
         <nav className="flex-1">
           <div className="space-y-1">
             <Link href="/">
-              <a className={`flex items-center px-2 py-2 text-sm font-medium rounded-md ${location === '/' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'} group`}>
+              <div className={`flex items-center px-2 py-2 text-sm font-medium rounded-md ${location === '/' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'} group cursor-pointer`}>
                 <Plus className="h-5 w-5 mr-3 text-gray-400 group-hover:text-primary" />
                 New Transcription
-              </a>
+              </div>
             </Link>
             
             <Link href="/saved-transcripts">
-              <a className={`flex items-center px-2 py-2 text-sm font-medium rounded-md ${location === '/saved-transcripts' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'} group`}>
+              <div className={`flex items-center px-2 py-2 text-sm font-medium rounded-md ${location === '/saved-transcripts' ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'} group cursor-pointer`}>
                 <Layers className="h-5 w-5 mr-3 text-primary" />
                 Saved Transcripts
-              </a>
+              </div>
             </Link>
             
-            <a href="#" className="flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white group">
-              <Settings className="h-5 w-5 mr-3 text-gray-400 group-hover:text-primary" />
-              Settings
-            </a>
+            <Link href="/settings">
+              <div className={`flex items-center px-2 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-700 hover:text-white group cursor-pointer`}>
+                <Settings className="h-5 w-5 mr-3 text-gray-400 group-hover:text-primary" />
+                Settings
+              </div>
+            </Link>
           </div>
         </nav>
         
