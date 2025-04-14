@@ -24,12 +24,13 @@ class TranscriptionService:
         if not api_key:
             raise Exception("OpenAI API key is missing")
         
-        # Save audio file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
-            temp_file.write(audio_file.read())
-            temp_file_path = temp_file.name
-        
+        temp_file_path = None
         try:
+            # Save audio file temporarily
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
+                temp_file.write(audio_file.read())
+                temp_file_path = temp_file.name
+            
             headers = {
                 "Authorization": f"Bearer {api_key}"
             }
@@ -64,7 +65,8 @@ class TranscriptionService:
         except Exception as e:
             raise Exception(f"Error transcribing with Whisper: {str(e)}")
         finally:
-            os.unlink(temp_file_path)
+            if temp_file_path and os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
     
     @staticmethod
     def transcribe_with_deepgram(audio_file, model="nova-2", api_key=None, options=None):
@@ -88,6 +90,7 @@ class TranscriptionService:
             "Content-Type": "audio/mp3"
         }
         
+        temp_file_path = None
         try:
             # Save audio file temporarily
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
@@ -123,7 +126,7 @@ class TranscriptionService:
         except Exception as e:
             raise Exception(f"Error transcribing with Deepgram: {str(e)}")
         finally:
-            if os.path.exists(temp_file_path):
+            if temp_file_path and os.path.exists(temp_file_path):
                 os.unlink(temp_file_path)
 
 class GeminiService:
