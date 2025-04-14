@@ -50,13 +50,17 @@ export async function analyzeWithGemini(
   temperature: number = 0.2,
   maxTokens: number = 1000
 ) {
+  // Get Gemini API key from localStorage
+  const geminiKey = localStorage.getItem('GEMINI_API_KEY');
+  
   const response = await apiRequest('POST', '/api/gemini/analyze', {
     transcript,
     question,
     config: {
       temperature,
       maxTokens
-    }
+    },
+    geminiKey // Pass API key to server
   });
   
   return response.json();

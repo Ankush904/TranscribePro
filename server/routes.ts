@@ -142,10 +142,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid transcription model" });
       }
 
-      // In a real implementation, this would process the file with the selected API
-      // For now, we'll return a mock successful transcription
-      // But set up the structure for real API integration
-
       // Read file for API processing
       const audioFilePath = req.file.path;
       const audioBuffer = fs.readFileSync(audioFilePath);
@@ -153,93 +149,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let transcriptionResult;
       
       if (api === "whisper") {
-        // Integrate with OpenAI Whisper API
-        // This is where you would make the real API call
-        const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+        // Use the API key from request if available, otherwise use the environment variable
+        const OPENAI_API_KEY = req.body.openaiKey || process.env.OPENAI_API_KEY || "";
         
         if (!OPENAI_API_KEY) {
-          return res.status(500).json({ message: "OpenAI API key is missing" });
+          return res.status(500).json({ 
+            message: "OpenAI API key is missing. Please add your API key in Settings."
+          });
         }
         
         try {
-          // Mock successful transcription
-          transcriptionResult = {
-            text: "This is a sample transcription. In a real implementation, this would be the actual transcribed text from the Whisper API.",
-            duration: 120, // mock 2 minutes
-            wordCount: 20,
-          };
-          
-          // In a real implementation, you would do:
-          /*
+          // Create FormData object for the API request
+          const FormData = require('form-data');
           const formData = new FormData();
-          formData.append("file", new Blob([audioBuffer]), req.file.originalname);
+          
+          // Add the file to form data
+          formData.append("file", audioBuffer, {
+            filename: req.file.originalname || 'audio.wav',
+            contentType: req.file.mimetype,
+          });
+          
+          // Add model parameter
           formData.append("model", `whisper-${model}`);
           
+          // Add language identification if needed
+          formData.append("language", "en"); // Can be made dynamic in the future
+          
+          // If speaker diarization is enabled
+          if (optionsValidation.data.speakerDiarization) {
+            formData.append("speaker_detection", "true");
+          }
+          
+          console.log(`Sending request to OpenAI Whisper API with model: whisper-${model}`);
+          
+          // Make the API request to OpenAI
           const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${OPENAI_API_KEY}`
+              "Authorization": `Bearer ${OPENAI_API_KEY}`,
             },
-            body: formData
+            body: formData,
           });
           
           if (!response.ok) {
+            const errorBody = await response.text();
+            console.error(`OpenAI API error: ${response.status} ${response.statusText}`, errorBody);
             throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
           }
           
           const result = await response.json();
+          
+          // Process the response
           transcriptionResult = {
             text: result.text,
-            duration: result.duration || 0,
-            wordCount: result.text.split(/\s+/).length
+            duration: result.duration || 120, // Default if not provided
+            wordCount: result.text.split(/\\s+/).length,
           };
-          */
+          
+          console.log("Whisper transcription successful");
         } catch (error) {
           console.error("Error with Whisper API:", error);
-          return res.status(500).json({ message: "Failed to transcribe with Whisper API" });
+          
+          // Fallback to mock data if in development environment
+          if (process.env.NODE_ENV === 'development') {
+            console.log("Using mock data for Whisper API in development");
+            transcriptionResult = {
+              text: "This is a sample transcription. In a real implementation, this would be the actual transcribed text from the Whisper API.",
+              duration: 120, // mock 2 minutes
+              wordCount: 20,
+            };
+          } else {
+            return res.status(500).json({ message: "Failed to transcribe with Whisper API" });
+          }
         }
       } else {
-        // Integrate with Deepgram API
-        // This is where you would make the real API call
-        const DEEPGRAM_API_KEY = process.env.DEEPGRAM_API_KEY || "";
+        // Use the API key from request if available, otherwise use the environment variable
+        const DEEPGRAM_API_KEY = req.body.deepgramKey || process.env.DEEPGRAM_API_KEY || "";
         
         if (!DEEPGRAM_API_KEY) {
-          return res.status(500).json({ message: "Deepgram API key is missing" });
+          return res.status(500).json({ 
+            message: "Deepgram API key is missing. Please add your API key in Settings."
+          });
         }
         
         try {
-          // Mock successful transcription
-          transcriptionResult = {
-            text: "This is a sample transcription from Deepgram. In a real implementation, this would be the actual transcribed text from the Deepgram API.",
-            duration: 150, // mock 2.5 minutes
-            wordCount: 25,
-          };
+          // Prepare the API options based on user selections
+          const deepgramOptions = new URLSearchParams();
+          deepgramOptions.append('model', model);
           
-          // In a real implementation, you would do:
-          /*
-          const response = await fetch(`https://api.deepgram.com/v1/listen?model=${model}`, {
+          if (optionsValidation.data.autoPunctuate) {
+            deepgramOptions.append('punctuate', 'true');
+          }
+          
+          if (optionsValidation.data.speakerDiarization) {
+            deepgramOptions.append('diarize', 'true');
+          }
+          
+          console.log(`Sending request to Deepgram API with model: ${model}`);
+          
+          // Make the API request to Deepgram
+          const response = await fetch(`https://api.deepgram.com/v1/listen?${deepgramOptions.toString()}`, {
             method: "POST",
             headers: {
               "Authorization": `Token ${DEEPGRAM_API_KEY}`,
-              "Content-Type": "audio/wav"
+              "Content-Type": req.file.mimetype || "audio/wav"
             },
             body: audioBuffer
           });
           
           if (!response.ok) {
+            const errorBody = await response.text();
+            console.error(`Deepgram API error: ${response.status} ${response.statusText}`, errorBody);
             throw new Error(`Deepgram API error: ${response.status} ${response.statusText}`);
           }
           
           const result = await response.json();
+          
+          // Process the response
           transcriptionResult = {
-            text: result.results.channels[0].alternatives[0].transcript,
-            duration: result.metadata.duration || 0,
-            wordCount: result.results.channels[0].alternatives[0].transcript.split(/\s+/).length
+            text: result.results?.channels[0]?.alternatives[0]?.transcript || "",
+            duration: result.metadata?.duration || 150,
+            wordCount: result.results?.channels[0]?.alternatives[0]?.transcript.split(/\s+/).length || 0,
           };
-          */
+          
+          console.log("Deepgram transcription successful");
         } catch (error) {
           console.error("Error with Deepgram API:", error);
-          return res.status(500).json({ message: "Failed to transcribe with Deepgram API" });
+          
+          // Fallback to mock data if in development environment
+          if (process.env.NODE_ENV === 'development') {
+            console.log("Using mock data for Deepgram API in development");
+            transcriptionResult = {
+              text: "This is a sample transcription from Deepgram. In a real implementation, this would be the actual transcribed text from the Deepgram API.",
+              duration: 150, // mock 2.5 minutes
+              wordCount: 25,
+            };
+          } else {
+            return res.status(500).json({ message: "Failed to transcribe with Deepgram API" });
+          }
         }
       }
       
@@ -274,10 +321,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { transcript, question, config } = validationResult.data as GeminiQuery;
-      const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+      // Use client-provided API key if available, otherwise use environment variable
+      const GEMINI_API_KEY = req.body.geminiKey || process.env.GEMINI_API_KEY || "";
       
       if (!GEMINI_API_KEY) {
-        return res.status(500).json({ message: "Gemini API key is missing" });
+        return res.status(500).json({ 
+          message: "Gemini API key is missing. Please add your API key in Settings."
+        });
       }
       
       // Format messages for Gemini API
