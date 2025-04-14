@@ -6,6 +6,8 @@ import {
   type User, 
   type InsertUser 
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -22,83 +24,58 @@ export interface IStorage {
   deleteTranscript(id: number): Promise<boolean>;
 }
 
-// In-memory storage implementation
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private transcripts: Map<number, Transcript>;
-  private userCurrentId: number;
-  private transcriptCurrentId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.transcripts = new Map();
-    this.userCurrentId = 1;
-    this.transcriptCurrentId = 1;
-  }
-
-  // User methods (kept from original)
+// Database storage implementation
+export class DatabaseStorage implements IStorage {
+  // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await db.select().from(users).where(eq(users.id, id));
+    return result.length > 0 ? result[0] : undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const result = await db.select().from(users).where(eq(users.username, username));
+    return result.length > 0 ? result[0] : undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userCurrentId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const result = await db.insert(users).values(insertUser).returning();
+    return result[0];
   }
 
   // Transcript methods
   async getAllTranscripts(): Promise<Transcript[]> {
-    return Array.from(this.transcripts.values()).sort((a, b) => {
-      // Sort by created date, newest first
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    });
+    return await db.select().from(transcripts).orderBy(desc(transcripts.createdAt));
   }
 
   async getTranscript(id: number): Promise<Transcript | undefined> {
-    return this.transcripts.get(id);
+    const result = await db.select().from(transcripts).where(eq(transcripts.id, id));
+    return result.length > 0 ? result[0] : undefined;
   }
 
   async createTranscript(insertTranscript: InsertTranscript): Promise<Transcript> {
-    const id = this.transcriptCurrentId++;
-    const now = new Date();
-    const transcript: Transcript = {
-      ...insertTranscript, 
-      id,
-      createdAt: now
-    };
-    this.transcripts.set(id, transcript);
-    return transcript;
+    const result = await db.insert(transcripts).values(insertTranscript).returning();
+    return result[0];
   }
 
   async updateTranscript(id: number, updateData: Partial<InsertTranscript>): Promise<Transcript | undefined> {
-    const transcript = this.transcripts.get(id);
-    if (!transcript) {
-      return undefined;
-    }
+    const result = await db
+      .update(transcripts)
+      .set(updateData)
+      .where(eq(transcripts.id, id))
+      .returning();
     
-    const updatedTranscript: Transcript = {
-      ...transcript,
-      ...updateData,
-    };
-    
-    this.transcripts.set(id, updatedTranscript);
-    return updatedTranscript;
+    return result.length > 0 ? result[0] : undefined;
   }
 
   async deleteTranscript(id: number): Promise<boolean> {
-    return this.transcripts.delete(id);
+    const result = await db
+      .delete(transcripts)
+      .where(eq(transcripts.id, id))
+      .returning({ id: transcripts.id });
+    
+    return result.length > 0;
   }
 }
 
 // Export singleton instance
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
