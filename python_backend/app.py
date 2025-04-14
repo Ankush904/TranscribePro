@@ -6,16 +6,18 @@ from sqlalchemy.orm import Session
 from contextlib import contextmanager
 import traceback
 
-from models import get_db, create_tables, Transcript
-from schemas import (
+# Import from python_backend package
+from python_backend.models import get_db, create_tables, Transcript
+from python_backend.schemas import (
     TranscriptionRequest, TranscriptCreate, TranscriptUpdate,
     GeminiRequest, TranscriptResponse
 )
-from services import TranscriptionService, GeminiService
+from python_backend.services import TranscriptionService, GeminiService
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+# Configure CORS to allow requests from the frontend
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Create database tables if they don't exist
 create_tables()
